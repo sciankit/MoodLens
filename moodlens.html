@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MoodLens — Passive Depression Screening</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:    #080f1e;
+      --navy2:   #0d1a30;
+      --navy3:   #112240;
+      --cyan:    #4ef0d1;
+      --cyan2:   #2dd4bf;
+      --cyan-dim: rgba(78,240,209,0.12);
+      --cyan-glow: rgba(78,240,209,0.25);
+      --white:   #e8f0fe;
+      --muted:   #8899bb;
+      --card:    #0e1e38;
+      --border:  rgba(78,240,209,0.15);
+      --red:     #ff6b8a;
+      --gold:    #f5c842;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--navy);
+      color: var(--white);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE TEXTURE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.2rem 4rem;
+      background: rgba(8,15,30,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+      color: var(--cyan);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--cyan); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8rem 2rem 5rem;
+      overflow: hidden;
+    }
+
+    /* Radial glow */
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -60%);
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(78,240,209,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Animated ECG line */
+    .ecg-wrap {
+      position: absolute;
+      bottom: 80px; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      opacity: 0.35;
+    }
+
+    .ecg-line {
+      width: 600px;
+      height: 60px;
+      stroke: var(--cyan);
+      stroke-width: 1.5;
+      fill: none;
+      stroke-dasharray: 1200;
+      stroke-dashoffset: 1200;
+      animation: drawEcg 3s ease forwards 1s, pulseEcg 3s ease-in-out infinite 4s;
+    }
+
+    @keyframes drawEcg {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes pulseEcg {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 860px; }
+
+    .hero-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--cyan);
+      background: var(--cyan-dim);
+      border: 1px solid var(--border);
+      padding: 0.35rem 1rem;
+      border-radius: 100px;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.8rem;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    h1.hero-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(3.5rem, 8vw, 6.5rem);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.2rem;
+      animation: fadeUp 0.6s ease both 0.1s;
+    }
+
+    h1.hero-title span { color: var(--cyan); font-style: italic; }
+
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 580px;
+      margin: 0 auto 2.5rem;
+      font-weight: 300;
+      animation: fadeUp 0.6s ease both 0.2s;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeUp 0.6s ease both 0.3s;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.85rem 2rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-primary {
+      background: var(--cyan);
+      color: var(--navy);
+    }
+    .btn-primary:hover {
+      background: var(--cyan2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px var(--cyan-glow);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--white);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-ghost:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      transform: translateY(-2px);
+    }
+
+    /* ── STATS STRIP ── */
+    .stats-strip {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--navy2);
+      padding: 2.5rem 4rem;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      text-align: center;
+    }
+
+    .stat-item {}
+    .stat-num {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2.6rem;
+      color: var(--cyan);
+      line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ── SECTION BASE ── */
+    section {
+      position: relative;
+      z-index: 1;
+      padding: 6rem 4rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--cyan);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.8rem;
+    }
+
+    h2.section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.15;
+      margin-bottom: 1.2rem;
+      letter-spacing: -0.01em;
+    }
+
+    .section-lead {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 680px;
+      margin-bottom: 3rem;
+      font-weight: 300;
+    }
+
+    hr.section-rule {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    /* ── PROBLEM SECTION ── */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 3rem;
+    }
+
+    .problem-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+    .problem-card:hover {
+      border-color: rgba(78,240,209,0.4);
+      transform: translateY(-3px);
+    }
+    .problem-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .problem-card:hover::before { opacity: 1; }
+
+    .problem-card .card-icon {
+      font-size: 1.6rem;
+      margin-bottom: 1rem;
+    }
+    .problem-card h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .problem-card p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .problem-card .big-stat {
+      font-family: 'DM Serif Display', serif;
+      font-size: 3rem;
+      color: var(--cyan);
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .hiw-bg {
+      background: var(--navy2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin-top: 3rem;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+    }
+
+    .pipe-step {
+      flex: 1;
+      min-width: 180px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.8rem 1.4rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .pipe-arrow {
+      display: flex;
+      align-items: center;
+      padding: 0 0.3rem;
+      color: var(--cyan);
+      font-size: 1.3rem;
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+
+    .pipe-step .pipe-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--cyan);
+      letter-spacing: 0.1em;
+      margin-bottom: 0.6rem;
+    }
+    .pipe-step .pipe-icon { font-size: 1.8rem; margin-bottom: 0.6rem; }
+    .pipe-step h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    .pipe-step p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* tiers */
+    .tiers {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-top: 3rem;
+    }
+
+    .tier-card {
+      border-radius: 12px;
+      padding: 2rem;
+      border: 1px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tier-card.mild {
+      background: linear-gradient(135deg, rgba(245,200,66,0.07), rgba(245,200,66,0.02));
+      border-color: rgba(245,200,66,0.2);
+    }
+    .tier-card.moderate {
+      background: linear-gradient(135deg, rgba(78,240,209,0.07), rgba(78,240,209,0.02));
+      border-color: rgba(78,240,209,0.25);
+    }
+    .tier-card.severe {
+      background: linear-gradient(135deg, rgba(255,107,138,0.07), rgba(255,107,138,0.02));
+      border-color: rgba(255,107,138,0.2);
+    }
+
+    .tier-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 100px;
+      margin-bottom: 1rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+    .mild .tier-badge { background: rgba(245,200,66,0.15); color: var(--gold); }
+    .moderate .tier-badge { background: rgba(78,240,209,0.15); color: var(--cyan); }
+    .severe .tier-badge { background: rgba(255,107,138,0.15); color: var(--red); }
+
+    .tier-phq {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2.5rem;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .mild .tier-phq { color: var(--gold); }
+    .moderate .tier-phq { color: var(--cyan); }
+    .severe .tier-phq { color: var(--red); }
+
+    .tier-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.8rem;
+    }
+    .tier-card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── TECH STACK ── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.2rem;
+      margin-top: 3rem;
+    }
+
+    .tech-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.6rem;
+      transition: border-color 0.25s, transform 0.25s;
+    }
+    .tech-card:hover {
+      border-color: rgba(78,240,209,0.35);
+      transform: translateY(-2px);
+    }
+    .tech-card .tech-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--cyan);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .tech-card h4 { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .tech-card p { font-size: 0.83rem; color: var(--muted); line-height: 1.55; }
+
+    /* paper citation */
+    .paper-cite {
+      background: rgba(78,240,209,0.05);
+      border-left: 3px solid var(--cyan);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.4rem;
+      margin-top: 0.8rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .paper-cite a { color: var(--cyan); text-decoration: none; }
+    .paper-cite a:hover { text-decoration: underline; }
+
+    /* ── TEAM ── */
+    .team-bg {
+      background: var(--navy2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      margin-top: 3rem;
+    }
+
+    .team-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      transition: border-color 0.3s, transform 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .team-card:hover {
+      border-color: rgba(78,240,209,0.4);
+      transform: translateY(-4px);
+    }
+    .team-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 0%, var(--cyan-dim), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .team-card:hover::after { opacity: 1; }
+
+    .avatar {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem;
+      border: 2px solid var(--border);
+      position: relative;
+      z-index: 1;
+    }
+
+    .av1 { background: linear-gradient(135deg, #1a3a5c, #0d2035); color: var(--cyan); }
+    .av2 { background: linear-gradient(135deg, #1a3a3a, #0d2528); color: #4ecca3; }
+    .av3 { background: linear-gradient(135deg, #3a1a3a, #25082a); color: #c084fc; }
+    .av4 { background: linear-gradient(135deg, #3a2a1a, #251808); color: #fb923c; }
+
+    .team-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+      position: relative; z-index: 1;
+    }
+    .team-card .role {
+      font-size: 0.75rem;
+      color: var(--cyan);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.8rem;
+      position: relative; z-index: 1;
+    }
+    .team-card .bio {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.55;
+      position: relative; z-index: 1;
+    }
+
+    /* ── CONTACT ── */
+    .contact-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: start;
+      margin-top: 3rem;
+    }
+
+    .contact-info h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem;
+      margin-bottom: 1rem;
+    }
+    .contact-info p {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+    }
+
+    .contact-links { display: flex; flex-direction: column; gap: 0.8rem; }
+    .contact-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--white);
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 0.7rem 1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .contact-link:hover { border-color: var(--cyan); color: var(--cyan); }
+    .contact-link .cl-icon { font-size: 1.1rem; }
+
+    .contact-form {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2.5rem;
+    }
+    .contact-form h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0.75rem 1rem;
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus { border-color: var(--cyan); }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color: var(--muted); }
+    .form-group select option { background: var(--navy2); }
+
+    .form-group textarea { min-height: 100px; }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--cyan);
+      color: var(--navy);
+      border: none;
+      padding: 0.9rem;
+      border-radius: 7px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .btn-submit:hover {
+      background: var(--cyan2);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px var(--cyan-glow);
+    }
+
+    .form-success {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+    }
+    .form-success .tick { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .form-success p { color: var(--muted); font-size: 0.9rem; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--navy);
+    }
+    .footer-logo {
+      font-family: 'DM Serif Display', serif;
+      color: var(--cyan);
+      font-size: 1.1rem;
+    }
+    .footer-tagline {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .footer-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      nav { padding: 1rem 1.5rem; }
+      .nav-links { display: none; }
+      section { padding: 4rem 1.5rem; }
+      .stats-strip { grid-template-columns: repeat(2, 1fr); padding: 2rem 1.5rem; }
+      .problem-grid { grid-template-columns: 1fr; }
+      .tiers { grid-template-columns: 1fr; }
+      .tech-grid { grid-template-columns: 1fr 1fr; }
+      .team-grid { grid-template-columns: 1fr 1fr; }
+      .contact-wrap { grid-template-columns: 1fr; gap: 2rem; }
+      footer { flex-direction: column; gap: 1rem; text-align: center; padding: 2rem 1.5rem; }
+      .pipeline { gap: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="nav-logo">MoodLens</a>
+    <ul class="nav-links">
+      <li><a href="#problem">Problem</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#tech">Technology</a></li>
+      <li><a href="#team">Team</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <a href="#contact" class="btn btn-primary" style="padding:0.6rem 1.3rem; font-size:0.82rem;">Get in Touch</a>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-content">
+      <div class="hero-tag">⬡ Hacklethics 2025 — Mental Health Track</div>
+      <h1 class="hero-title">Depression<br>screening that<br><span>never sleeps.</span></h1>
+      <p class="hero-sub">MoodLens passively monitors biometric and linguistic signals from your wearable and phone to detect early signs of depression — before crisis strikes.</p>
+      <div class="hero-ctas">
+        <a href="#how" class="btn btn-primary">See How It Works →</a>
+        <a href="https://github.com/sciankit/Depression_Screen" target="_blank" class="btn btn-ghost">⌥ View on GitHub</a>
+      </div>
+    </div>
+    <div class="ecg-wrap" aria-hidden="true">
+      <svg viewBox="0 0 600 60" class="ecg-line">
+        <polyline points="
+          0,30 60,30 80,30 90,5 100,55 110,20 125,30
+          185,30 205,30 215,5 225,55 235,20 250,30
+          310,30 330,30 340,5 350,55 360,20 375,30
+          435,30 455,30 465,5 475,55 485,20 500,30
+          560,30 580,30 600,30
+        "/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-strip">
+    <div class="stat-item reveal">
+      <div class="stat-num">970M</div>
+      <div class="stat-label">People with mental disorders worldwide</div>
+    </div>
+    <div class="stat-item reveal">
+      <div class="stat-num">43%</div>
+      <div class="stat-label">Of those affected who receive treatment</div>
+    </div>
+    <div class="stat-item reveal">
+      <div class="stat-num">$6T</div>
+      <div class="stat-label">Projected annual economic cost by 2030</div>
+    </div>
+    <div class="stat-item reveal">
+      <div class="stat-num">0</div>
+      <div class="stat-label">Active effort required from the user</div>
+    </div>
+  </div>
+
+  <!-- PROBLEM -->
+  <section id="problem">
+    <div class="section-tag">// 01 — The Problem</div>
+    <h2 class="section-title">Mental healthcare is reactive.<br>We're making it <em style="color:var(--cyan); font-style:italic; font-family:'DM Serif Display',serif;">proactive.</em></h2>
+    <p class="section-lead">Depression leaves digital fingerprints weeks before a crisis. Today, those signals go undetected.</p>
+
+    <div class="problem-grid">
+      <div class="problem-card reveal">
+        <div class="big-stat">23.4%</div>
+        <h3>Adults affected yearly</h3>
+        <p>Over 60 million Americans experience a mental illness annually, yet most won't see a mental health professional — held back by stigma, cost, and access. (CDC, 2024)</p>
+      </div>
+      <div class="problem-card reveal">
+        <div class="big-stat">40%</div>
+        <h3>Adolescents with no care</h3>
+        <p>Four in ten adolescents who experience a major depressive episode receive zero treatment, leaving them vulnerable to worsening outcomes. (Annie E. Casey Foundation, 2024)</p>
+      </div>
+      <div class="problem-card reveal">
+        <div class="card-icon">💡</div>
+        <h3>The detection gap</h3>
+        <p>Psychiatric care happens in scheduled appointments. Crises don't. There's almost no infrastructure to catch someone in the weeks <em>before</em> they reach a breaking point.</p>
+      </div>
+      <div class="problem-card reveal">
+        <div class="card-icon">📡</div>
+        <h3>Data we already have</h3>
+        <p>Wearables and smartphones continuously collect sleep patterns, heart rate variability, activity levels, and communication behavior — all known early indicators of depressive episodes.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-rule">
+
+  <!-- HOW IT WORKS -->
+  <div class="hiw-bg" id="how">
+    <section style="max-width:1200px; margin:0 auto;">
+      <div class="section-tag">// 02 — How It Works</div>
+      <h2 class="section-title">Two streams. One score.<br>Calibrated action.</h2>
+      <p class="section-lead">MoodLens fuses biometric and linguistic signals into a PHQ-9-aligned severity score, then responds proportionally.</p>
+
+      <!-- Pipeline -->
+      <div class="pipeline reveal">
+        <div class="pipe-step">
+          <div class="pipe-num">STEP 01</div>
+          <div class="pipe-icon">⌚</div>
+          <h4>Wearable Data</h4>
+          <p>Sleep, HRV, steps, SpO2 via Google Health Connect</p>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="pipe-num">STEP 02</div>
+          <div class="pipe-icon">🧠</div>
+          <h4>Biometric Model</h4>
+          <p>Logistic regression on Databricks → PHQ Score 1</p>
+        </div>
+        <div class="pipe-arrow">↘</div>
+        <div class="pipe-step" style="background: linear-gradient(135deg, rgba(78,240,209,0.08), var(--card)); border-color: rgba(78,240,209,0.35);">
+          <div class="pipe-num">STEP 05</div>
+          <div class="pipe-icon">⚖️</div>
+          <h4>Score Fusion</h4>
+          <p>Weighted combination → Final PHQ-9 Score</p>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="pipe-num">STEP 06</div>
+          <div class="pipe-icon">🎯</div>
+          <h4>Intervention</h4>
+          <p>Tiered response from affirmations to human responders</p>
+        </div>
+      </div>
+      <div class="pipeline reveal" style="margin-top:0.5rem;">
+        <div class="pipe-step">
+          <div class="pipe-num">STEP 03</div>
+          <div class="pipe-icon">💬</div>
+          <h4>Message Analysis</h4>
+          <p>Call log metadata & anonymized text patterns</p>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="pipe-num">STEP 04</div>
+          <div class="pipe-icon">🤖</div>
+          <h4>RoBERTa Model</h4>
+          <p>Fine-tuned sentiment analysis → PHQ Score 2</p>
+        </div>
+        <div class="pipe-arrow" style="opacity:0;">↗</div>
+        <div class="pipe-step" style="opacity:0; pointer-events:none;"></div>
+        <div class="pipe-arrow" style="opacity:0;">→</div>
+        <div class="pipe-step" style="opacity:0; pointer-events:none;"></div>
+      </div>
+
+      <!-- Intervention Tiers -->
+      <div class="tiers reveal">
+        <div class="tier-card mild">
+          <div class="tier-badge">PHQ 0 – 9</div>
+          <div class="tier-phq">Mild</div>
+          <h3>Positive Affirmations</h3>
+          <p>No active intervention is needed. The app delivers personalized affirmations on demand, proactively supporting resilience and emotional well-being.</p>
+        </div>
+        <div class="tier-card moderate">
+          <div class="tier-badge">PHQ 10 – 19</div>
+          <div class="tier-phq">Moderate</div>
+          <h3>AI Conversation</h3>
+          <p>The user is connected to an empathetic AI voice conversation powered by a large language model and ElevenLabs text-to-speech — a stigma-free, always-available bridge to support.</p>
+        </div>
+        <div class="tier-card severe">
+          <div class="tier-badge">PHQ 20 – 27</div>
+          <div class="tier-phq">Severe</div>
+          <h3>Human-in-the-Loop</h3>
+          <p>Emergency contacts, volunteer mental health professionals, or medical responders are alerted and provided with PHQ trend data and flagged linguistic signals for rapid triage.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- TECHNOLOGY -->
+  <section id="tech">
+    <div class="section-tag">// 03 — Technology</div>
+    <h2 class="section-title">Built on rigorous<br>research foundations.</h2>
+    <p class="section-lead">Every model and methodology is grounded in peer-reviewed clinical literature.</p>
+
+    <div class="tech-grid">
+      <div class="tech-card reveal">
+        <div class="tech-label">Biometric Intelligence</div>
+        <h4>Synthetic Data + Spearman Correlation</h4>
+        <p>Because ethically labeled biometric-PHQ datasets are scarce, we generated synthetic training data using Spearman correlation coefficients from:</p>
+        <div class="paper-cite">Rykov et al. "Digital Biomarkers for Depression Screening With Wearable Devices." <em>JMIR Mhealth Uhealth</em>, 2021. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8576601/" target="_blank">PMC8576601 ↗</a></div>
+      </div>
+      <div class="tech-card reveal">
+        <div class="tech-label">Linguistic Intelligence</div>
+        <h4>Fine-tuned RoBERTa</h4>
+        <p>State-of-the-art transformer model fine-tuned on depression-related linguistic patterns. RoBERTa achieves 94–96% accuracy on sentiment benchmarks through dynamic masking, 160 GB training data, and no NSP objective.</p>
+        <div class="paper-cite">Liu et al. "RoBERTa: A Robustly Optimized BERT Pretraining Approach." <em>arXiv</em>:1907.11692, 2019. <a href="https://arxiv.org/abs/1907.11692" target="_blank">arXiv ↗</a></div>
+      </div>
+      <div class="tech-card reveal">
+        <div class="tech-label">ML Infrastructure</div>
+        <h4>Databricks Inference</h4>
+        <p>Both models are hosted as inference endpoints on Databricks, providing scalable, low-latency predictions from the mobile app with enterprise-grade reliability.</p>
+      </div>
+      <div class="tech-card reveal">
+        <div class="tech-label">Health Data</div>
+        <h4>Google Health Connect</h4>
+        <p>Integrates with Google Health Connect to pull passive biometric data from Pixel Watch, Fitbit, and other supported wearables — no manual logging required.</p>
+      </div>
+      <div class="tech-card reveal">
+        <div class="tech-label">AI Conversation</div>
+        <h4>LLM + ElevenLabs Voice</h4>
+        <p>The moderate-tier intervention uses a large language model paired with ElevenLabs text-to-speech synthesis to deliver empathetic, naturalistic voice-based support conversations.</p>
+      </div>
+      <div class="tech-card reveal">
+        <div class="tech-label">Frontend</div>
+        <h4>React + Vite</h4>
+        <p>Mobile-first React application built with Vite for fast builds and HMR. Privacy-first architecture: message content is analyzed locally or anonymized, never stored in raw form.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-rule">
+
+  <!-- TEAM -->
+  <div class="team-bg" id="team">
+    <section style="max-width:1200px; margin:0 auto;">
+      <div class="section-tag">// 04 — The Team</div>
+      <h2 class="section-title">The people behind<br>MoodLens.</h2>
+      <p class="section-lead">A multidisciplinary team united by a belief that technology can close the gap between depression and care.</p>
+
+      <div class="team-grid">
+        <div class="team-card reveal">
+          <div class="avatar av1">A</div>
+          <h3>Ankit Sci</h3>
+          <div class="role">ML Engineer & Lead</div>
+          <p class="bio">Architected the biometric model pipeline, synthetic data generation workflow, and Databricks inference infrastructure.</p>
+        </div>
+        <div class="team-card reveal">
+          <div class="avatar av2">T</div>
+          <h3>Team Member 2</h3>
+          <div class="role">NLP / RoBERTa</div>
+          <p class="bio">Fine-tuned the RoBERTa model on depression-oriented linguistic patterns and built the sentiment scoring pipeline.</p>
+        </div>
+        <div class="team-card reveal">
+          <div class="avatar av3">T</div>
+          <h3>Team Member 3</h3>
+          <div class="role">Mobile & Health Connect</div>
+          <p class="bio">Built the React mobile frontend and Health Connect integration for passive biometric data collection from wearables.</p>
+        </div>
+        <div class="team-card reveal">
+          <div class="avatar av4">T</div>
+          <h3>Team Member 4</h3>
+          <div class="role">AI Conversations & UX</div>
+          <p class="bio">Designed the tiered intervention system, LLM conversation flows, ElevenLabs voice integration, and responder dashboard.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- CONTACT -->
+  <section id="contact">
+    <div class="section-tag">// 05 — Contact</div>
+    <h2 class="section-title">Interested in<br>MoodLens?</h2>
+    <p class="section-lead">Whether you're a researcher, clinician, investor, or potential collaborator — we'd love to hear from you.</p>
+
+    <div class="contact-wrap">
+      <div class="contact-info reveal">
+        <h3>Let's build better mental healthcare together.</h3>
+        <p>MoodLens is an open-source Hacklethics project exploring the frontier of passive mental health monitoring. We're looking for research partners, clinical advisors, and anyone passionate about making mental healthcare more proactive.</p>
+
+        <div class="contact-links">
+          <a href="https://github.com/sciankit/Depression_Screen" target="_blank" class="contact-link">
+            <span class="cl-icon">⌥</span>
+            <span>github.com/sciankit/Depression_Screen</span>
+          </a>
+          <a href="mailto:hello@mindsignal.dev" class="contact-link">
+            <span class="cl-icon">✉</span>
+            <span>hello@mindsignal.dev</span>
+          </a>
+          <a href="#team" class="contact-link">
+            <span class="cl-icon">👥</span>
+            <span>Meet the team above</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="contact-form reveal">
+        <h3>Send us a message</h3>
+        <div id="contactForm">
+          <div class="form-group">
+            <label>Your Name</label>
+            <input type="text" placeholder="Jane Smith" />
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" placeholder="jane@institution.edu" />
+          </div>
+          <div class="form-group">
+            <label>I am a…</label>
+            <select>
+              <option value="">Select your role</option>
+              <option>Researcher / Academic</option>
+              <option>Clinician / Mental Health Professional</option>
+              <option>Potential Collaborator</option>
+              <option>Investor / Partner</option>
+              <option>Developer / Engineer</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Message</label>
+            <textarea placeholder="Tell us how you'd like to collaborate or what questions you have about MoodLens…"></textarea>
+          </div>
+          <button class="btn-submit" onclick="handleSubmit()">Send Message →</button>
+        </div>
+        <div class="form-success" id="formSuccess">
+          <div class="tick">✓</div>
+          <h3 style="margin-bottom:0.5rem;">Message sent!</h3>
+          <p>Thanks for reaching out. We'll get back to you within 48 hours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div>
+      <div class="footer-logo">MoodLens</div>
+      <div class="footer-tagline">Passive Depression Screening & Tiered Intervention</div>
+    </div>
+    <div class="footer-note">
+      Built at Hacklethics 2025<br>
+      <a href="https://github.com/sciankit/Depression_Screen" target="_blank" style="color:var(--cyan); text-decoration:none;">Open Source on GitHub ↗</a>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll reveal
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => entry.target.classList.add('visible'), i * 80);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    reveals.forEach(el => observer.observe(el));
+
+    // Form submit
+    function handleSubmit() {
+      const form = document.getElementById('contactForm');
+      const success = document.getElementById('formSuccess');
+      form.style.display = 'none';
+      success.style.display = 'block';
+    }
+
+    // Animate stats on scroll
+    const statNums = document.querySelectorAll('.stat-num');
+    const statObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.animation = 'fadeUp 0.6s ease both';
+          statObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.5 });
+    statNums.forEach(el => statObserver.observe(el));
+  </script>
+</body>
+</html>
